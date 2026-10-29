@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f5f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rotation">
+  <meta name="description" content="A simple repeating workout rotation tracker.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <title>Rotation</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f5f5f2; --fg:#171717; --muted:#70706c; --card:#fff; --line:#e2e2dc; --accent:#20201e; --accentfg:#fff; --soft:#ecece7; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#111110; --fg:#f4f4f0; --muted:#a4a49d; --card:#1d1d1b; --line:#343430; --accent:#f2f2ec; --accentfg:#171715; --soft:#292925; }
+    }
+    * { box-sizing:border-box; }
+    html { background:var(--bg); }
+    body { margin:0; padding: max(22px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+    main { max-width:520px; margin:0 auto; min-height:calc(100dvh - 50px); display:flex; flex-direction:column; }
+    header { display:flex; align-items:center; justify-content:space-between; margin:8px 0 34px; }
+    .brand { font-size:14px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+    .status { font-size:12px; color:var(--muted); display:flex; gap:6px; align-items:center; }
+    .dot { width:7px; height:7px; border-radius:50%; background:#9a9a92; }
+    .dot.online { background:#32965c; }
+    .eyebrow { color:var(--muted); font-size:13px; margin:0 0 12px; }
+    h1 { font-size:clamp(34px,9vw,50px); letter-spacing:-.045em; line-height:1.02; margin:0 0 14px; font-weight:750; }
+    .sub { color:var(--muted); font-size:15px; margin:0; }
+    .hero { padding:0 0 28px; }
+    .actions { display:grid; grid-template-columns:1fr 58px; gap:10px; margin:26px 0 30px; }
+    button { font:inherit; cursor:pointer; border:0; }
+    .done { min-height:60px; border-radius:18px; background:var(--accent); color:var(--accentfg); font-weight:700; font-size:16px; }
+    .undo { min-height:60px; border-radius:18px; background:var(--soft); color:var(--fg); font-size:20px; }
+    button:active { transform:scale(.985); }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .section-head h2 { font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:0; }
+    .text-button { background:transparent; color:var(--muted); font-size:13px; padding:8px 0 8px 10px; }
+    .list { border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--card); }
+    .item { display:flex; align-items:center; gap:14px; padding:15px 16px; border-bottom:1px solid var(--line); }
+    .item:last-child { border-bottom:0; }
+    .num { color:var(--muted); width:22px; font-size:12px; font-variant-numeric:tabular-nums; }
+    .item-name { flex:1; font-size:14px; }
+    .item.current { background:var(--soft); }
+    .item.current .item-name { font-weight:700; }
+    .current-mark { width:7px; height:7px; border-radius:50%; background:var(--fg); }
+    .footer { margin-top:auto; padding-top:24px; color:var(--muted); font-size:12px; line-height:1.5; text-align:center; }
+    .setup { margin-top:18px; padding:15px; border-radius:16px; background:var(--soft); display:none; }
+    .setup.show { display:block; }
+    .setup h3 { margin:0 0 10px; font-size:14px; }
+    .setup p { margin:8px 0; color:var(--muted); font-size:12px; line-height:1.5; }
+    input { display:block; width:100%; margin:8px 0; border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--card); color:var(--fg); font:inherit; font-size:13px; }
+    .small-button { padding:11px 13px; border-radius:10px; background:var(--accent); color:var(--accentfg); font-weight:650; font-size:13px; margin:5px 5px 0 0; }
+    .secondary { background:transparent; color:var(--fg); border:1px solid var(--line); }
+    .notice { font-size:12px; color:var(--muted); margin-top:12px; min-height:18px; line-height:1.4; }
+    .install-hint { display:none; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:12px; }
+    .install-hint.show { display:block; }
+    @media (min-width:600px) { body { padding-top:38px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">Rotation</div>
+    <div class="status"><span class="dot" id="syncDot"></span><span id="syncStatus">Saved on this device</span></div>
+  </header>
+  <section class="hero">
+    <p class="eyebrow" id="stepLabel">WORKOUT 1 OF 7</p>
+    <h1 id="currentWorkout">Upper A + Easy Run</h1>
+    <p class="sub" id="countLabel">0 workouts completed</p>
+    <div class="actions">
+      <button class="done" id="doneButton">Done · Next workout →</button>
+      <button class="undo" id="undoButton" aria-label="Previous workout" title="Previous workout">↶</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Rotation</h2>
+      <button class="text-button" id="editButton">Edit</button>
+    </div>
+    <div class="list" id="rotationList"></div>
+    <div class="setup" id="editPanel">
+      <h3>Edit rotation</h3>
+      <p>One workout per line. Your current position will be kept as close as possible.</p>
+      <textarea id="rotationInput" rows="7" style="display:block;width:100%;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--card);color:var(--fg);font:inherit;font-size:13px;line-height:1.7"></textarea>
+      <button class="small-button" id="saveRotation">Save rotation</button>
+      <button class="small-button secondary" id="cancelEdit">Cancel</button>
+    </div>
+  </section>
+
+  <section class="setup" id="cloudPanel">
+    <h3>Sync between devices</h3>
+    <p>Connect a Supabase project to sync progress across your devices. These are the public project URL and publishable/anon key—not a secret service-role key.</p>
+    <input id="supabaseUrl" type="url" placeholder="Supabase project URL">
+    <input id="supabaseKey" type="text" placeholder="Supabase publishable / anon key">
+    <input id="emailInput" type="email" placeholder="Email for sign-in link">
+    <button class="small-button" id="connectButton">Connect / send sign-in link</button>
+    <button class="small-button secondary" id="disconnectButton">Disconnect</button>
+    <p id="cloudHelp">After the database table and access policies are created using SETUP.md, connect here.</p>
+  </section>
+  <div class="section-head" style="margin-top:20px">
+    <h2>Account & setup</h2>
+    <button class="text-button" id="cloudToggle">Cloud sync</button>
+  </div>
+  <div class="install-hint" id="installHint">To install on iPhone: open this site in Safari, tap Share, then “Add to Home Screen.”</div>
+  <div class="notice" id="notice" role="status" aria-live="polite"></div>
+  <div class="footer">No weekdays. Just keep moving through the rotation.</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const DEFAULT = ["Upper A + Easy Run", "Legs A", "Easy Run", "Upper B", "Legs B", "Rest", "Long Run"];
+  const KEY = "workout-rotation-v1";
+  let state = loadLocal();
+  let supabase = null;
+  let user = null;
+  let saveTimer = null;
+  const $ = id => document.getElementById(id);
+  function loadLocal() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (s && Array.isArray(s.workouts) && s.workouts.length) return normalize(s);
+    } catch {}
+    return {workouts:DEFAULT.slice(), currentIndex:0, completedCount:0, updatedAt:new Date().toISOString()};
+  }
+  function normalize(s) {
+    const workouts = (s.workouts || DEFAULT).map(x => String(x).trim()).filter(Boolean);
+    return {workouts:workouts.length ? workouts : DEFAULT.slice(),
+      currentIndex:Math.max(0, Math.min(Number(s.currentIndex)||0, Math.max(0,workouts.length-1))),
+      completedCount:Math.max(0, Number(s.completedCount)||0),
+      updatedAt:s.updatedAt || new Date().toISOString()};
+  }
+  function persistLocal() { state.updatedAt = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(state)); }
+  function setNotice(msg) { $("notice").textContent = msg || ""; }
+  function render() {
+    const n = state.workouts.length, idx = state.currentIndex;
+    $("stepLabel").textContent = `WORKOUT ${idx+1} OF ${n}`;
+    $("currentWorkout").textContent = state.workouts[idx] || "Add a workout";
+    $("countLabel").textContent = `${state.completedCount} workout${state.completedCount===1?"":"s"} completed`;
+    $("rotationList").innerHTML = "";
+    state.workouts.forEach((name, i) => {
+      const row = document.createElement("div");
+      row.className = "item" + (i===idx ? " current" : "");
+      const num = document.createElement("span"); num.className="num"; num.textContent=String(i+1).padStart(2,"0");
+      const label = document.createElement("span"); label.className="item-name"; label.textContent=name;
+      row.append(num,label);
+      if (i===idx) { const mark=document.createElement("span"); mark.className="current-mark"; row.append(mark); }
+      $("rotationList").append(row);
+    });
+  }
+  async function cloudSave() {
+    if (!supabase || !user) return;
+    $("syncStatus").textContent = "Syncing…";
+    try {
+      const payload = {user_id:user.id, workouts:state.workouts, current_index:state.currentIndex, completed_count:state.completedCount, updated_at:new Date().toISOString()};
+      const {error} = await supabase.from("workout_rotation").upsert(payload, {onConflict:"user_id"});
+      if (error) throw error;
+      $("syncStatus").textContent = "Synced";
+      $("syncDot").classList.add("online");
+    } catch(e) {
+      $("syncStatus").textContent = "Sync issue";
+      setNotice("Could not sync: " + e.message + ". Your progress remains saved on this device.");
+    }
+  }
+  function save() { persistLocal(); render(); if (user) { clearTimeout(saveTimer); saveTimer=setTimeout(cloudSave, 150); } }
+  $("doneButton").addEventListener("click", () => { state.currentIndex=(state.currentIndex+1)%state.workouts.length; state.completedCount++; save(); });
+  $("undoButton").addEventListener("click", () => { state.currentIndex=(state.currentIndex-1+state.workouts.length)%state.workouts.length; state.completedCount=Math.max(0,state.completedCount-1); save(); });
+  $("editButton").addEventListener("click", () => { $("rotationInput").value=state.workouts.join("\n"); $("editPanel").classList.toggle("show"); });
+  $("cancelEdit").addEventListener("click", () => $("editPanel").classList.remove("show"));
+  $("saveRotation").addEventListener("click", () => {
+    const next=$("rotationInput").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    if (!next.length) { setNotice("Add at least one workout."); return; }
+    const currentName=state.workouts[state.currentIndex];
+    state.workouts=next;
+    state.currentIndex=Math.max(0,next.indexOf(currentName));
+    state.currentIndex=Math.min(state.currentIndex,next.length-1);
+    $("editPanel").classList.remove("show"); save(); setNotice("Rotation updated.");
+  });
+  $("cloudToggle").addEventListener("click", () => $("cloudPanel").classList.toggle("show"));
+  $("connectButton").addEventListener("click", async () => {
+    const url=$("supabaseUrl").value.trim(), key=$("supabaseKey").value.trim(), email=$("emailInput").value.trim();
+    if (!url || !key) { setNotice("Enter your Supabase project URL and public key."); return; }
+    if (!window.supabase || !window.supabase.createClient) { setNotice("Could not load the Supabase client. Check your connection and reload."); return; }
+    try {
+      localStorage.setItem("rotation-supabase-url",url);
+      localStorage.setItem("rotation-supabase-key",key);
+      supabase=window.supabase.createClient(url,key);
+      if (email) {
+        const {error}=await supabase.auth.signInWithOtp({email, options:{emailRedirectTo:location.href}});
+        if (error) throw error;
+        setNotice("Sign-in link sent. Open it on this device to finish connecting.");
+      } else {
+        const {data,error}=await supabase.auth.getSession();
+        if (error) throw error;
+        if (data.session) await finishLogin(data.session.user);
+        else setNotice("Enter your email to receive a sign-in link.");
+      }
+    } catch(e) { setNotice("Connection error: " + e.message); }
+  });
+  async function finishLogin(u) {
+    user=u;
+    $("syncStatus").textContent="Loading cloud…";
+    $("syncDot").classList.add("online");
+    try {
+      const {data,error}=await supabase.from("workout_rotation").select("*").eq("user_id",user.id).maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const cloudState=normalize({workouts:data.workouts,currentIndex:data.current_index,completedCount:data.completed_count,updatedAt:data.updated_at});
+        // Use cloud state when present; it is the shared source of truth across devices.
+        state=cloudState; persistLocal(); render();
+      } else {
+        await cloudSave();
+      }
+      $("syncStatus").textContent="Synced";
+      $("cloudHelp").textContent="Signed in. Progress syncs automatically when you tap Done or edit the rotation.";
+      setNotice("Cloud sync is connected.");
+    } catch(e) {
+      $("syncStatus").textContent="Sync issue";
+      setNotice("Signed in, but could not load the workout table: " + e.message);
+    }
+  }
+  $("disconnectButton").addEventListener("click", async () => {
+    if (supabase) { try { await supabase.auth.signOut(); } catch {} }
+    user=null; supabase=null; $("syncDot").classList.remove("online"); $("syncStatus").textContent="Saved on this device"; setNotice("Disconnected. Local progress is still saved.");
+  });
+  async function initCloud() {
+    const url=localStorage.getItem("rotation-supabase-url"), key=localStorage.getItem("rotation-supabase-key");
+    if (!url || !key || !window.supabase || !window.supabase.createClient) return;
+    $("supabaseUrl").value=url; $("supabaseKey").value=key;
+    supabase=window.supabase.createClient(url,key);
+    const {data}=await supabase.auth.getSession();
+    if (data.session) await finishLogin(data.session.user);
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) finishLogin(session.user);
+    });
+  }
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone) $("installHint").classList.add("show");
+  render(); initCloud();
+})();
+</script>
+</body>
+</html>
